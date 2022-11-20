@@ -10,7 +10,7 @@ import time
 from automatic import SolverConfig, AutoSolver
 from libs import utils, database, instaling, webhooks
 
-schedule_every = datetime.timedelta(minutes=1)
+schedule_every = datetime.timedelta(minutes=15)
 
 
 @dataclasses.dataclass(init=True, kw_only=True, slots=True)
