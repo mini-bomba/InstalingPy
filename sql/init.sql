@@ -1,27 +1,28 @@
-CREATE TABLE Words(
-    id INT NOT NULL PRIMARY KEY,
-    word VARCHAR(64) NOT NULL,
-    shown_word VARCHAR(64) NOT NULL,
+CREATE TABLE InstalingBot.Words
+(
+    id            INT          NOT NULL PRIMARY KEY,
+    word          VARCHAR(64)  NOT NULL,
+    shown_word    VARCHAR(64)  NOT NULL,
     usage_example VARCHAR(256) NOT NULL
 );
 
-CREATE TABLE WordTranslations
+CREATE TABLE InstalingBot.WordTranslations
 (
     id          INT AUTO_INCREMENT PRIMARY KEY,
     word_id     INT         NOT NULL,
     translation VARCHAR(64) NOT NULL,
     CONSTRAINT WordTranslations_Words_id_fk
         FOREIGN KEY (word_id) REFERENCES Words (id)
-        ON UPDATE CASCADE ON DELETE CASCADE
+            ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 CREATE INDEX WordTranslations_translation_index
-    ON WordTranslations (translation);
+    ON InstalingBot.WordTranslations (translation);
 
 CREATE UNIQUE INDEX WordTranslations_word_id_translation_uindex
     ON InstalingBot.WordTranslations (word_id, translation);
 
-CREATE TABLE WordHistory
+CREATE TABLE InstalingBot.WordHistory
 (
     word_id    INT                                NOT NULL,
     user_id    INT                                NOT NULL,
@@ -31,7 +32,7 @@ CREATE TABLE WordHistory
         PRIMARY KEY (word_id, user_id),
     CONSTRAINT WordHistory_Words_null_fk
         FOREIGN KEY (word_id) REFERENCES Words (id)
-        ON UPDATE CASCADE ON DELETE CASCADE
+            ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 CREATE USER instaling@localhost IDENTIFIED WITH 'unix_socket';
