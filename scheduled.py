@@ -28,6 +28,7 @@ class SolverProfile:
 async def solver_task(db: database.DatabaseManager, wh: webhooks.Webhook, profile: SolverProfile):
     logger = logging.getLogger(f"scheduler.{profile.username}")
     to_wait = (profile.next_run - datetime.datetime.now()).total_seconds() + random.random()
+    profile.next_run = None
     logger.debug(f"Waiting {to_wait}s until solver start")
     await asyncio.sleep(to_wait)
 
