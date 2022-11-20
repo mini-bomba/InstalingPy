@@ -1,0 +1,7 @@
+LOGIN = "/teacher.php?page=teacherActions"
+MAIN = "/student/pages/mainPage.php"
+LOGOUT = "/teacher2/logout.php"
+INIT_SESSION = "/ling2/server/actions/init_session.php"
+APP = "/ling2/html_app/app.php"
+NEXT_WORD = "/ling2/server/actions/generate_next_word.php"
+SUBMIT_ANSWER = "/ling2/server/actions/save_answer.php"
