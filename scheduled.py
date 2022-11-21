@@ -19,6 +19,7 @@ class SolverProfile:
     username: str
     password: str
     user_agent: str
+    timeout: float | None
     solver_config: SolverConfig
     last_run: datetime.date
     next_run: datetime.datetime | None
@@ -83,6 +84,7 @@ async def main():
             username=p['username'],
             password=p['password'],
             user_agent=p['user_agent'],
+            timeout=p['timeout'],
             solver_config=SolverConfig(**p['solver_config']),
             last_run=datetime.date.fromtimestamp(0),
             next_run=None,

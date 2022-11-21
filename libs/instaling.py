@@ -1,9 +1,10 @@
-import httpx
 import re
 
+import httpx
+
 from . import urls
-from .exceptions import LoginError, SessionExpired
 from . import utils, classes
+from .exceptions import LoginError, SessionExpired
 
 default_useragent = "Mozilla/5.0 (X11; Linux x86_64; rv:106.0) Gecko/20100101 Firefox/106.0"
 version_regex = re.compile(r"""updateParams\((?:[\w'"]+,\s*){3}['"](\w+)['"]\)""")
@@ -16,14 +17,17 @@ class Session:
     username: str
     password: str
 
-    def __init__(self, username: str, password: str, /, *, user_agent: str = default_useragent):
+    def __init__(self, username: str, password: str, /, *, user_agent: str = default_useragent,
+                 timeout: float | None = 10.0):
         self.username = username
         self.password = password
         self.version = None
         headers = {
             "User-Agent": user_agent
         }
-        self.httpx_client = httpx.AsyncClient(headers=headers, base_url="https://instaling.pl",
+        limits = httpx.Limits(keepalive_expiry=30.0)
+        self.httpx_client = httpx.AsyncClient(headers=headers, base_url="https://instaling.pl", timeout=timeout,
+                                              limits=limits,
                                               event_hooks={'response': [utils.check_for_session_expiry]})
 
     async def __aenter__(self) -> 'Session':
