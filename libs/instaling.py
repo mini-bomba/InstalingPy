@@ -108,7 +108,7 @@ class Session:
             word=None,
             shown_answer=None,
             usage_example=data['usage_example'],
-            difficulty=int(data['difficulty']) if 'difficulty' in data else None,
+            difficulty=int(d) if (d:=data.get('difficulty')) is not None else None,
             translations=data['translations'],
             audio_filename=None,
             grade=None,
