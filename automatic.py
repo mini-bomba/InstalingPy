@@ -1,9 +1,10 @@
-from libs import classes, database, instaling, utils
-import getpass
 import asyncio
-import random
-import logging
 import dataclasses
+import getpass
+import logging
+import random
+
+from libs import classes, database, instaling, utils
 
 
 @dataclasses.dataclass(init=True, kw_only=True, slots=True, frozen=True)
@@ -15,6 +16,7 @@ class SolverConfig:
     memorize_requirement: int
     synonym_chance: float
     mistake_chance: float
+    lowercase_chance: float
 
 
 class AutoSolver:
@@ -84,8 +86,7 @@ class AutoSolver:
                     await self.send_nothing(word)
                 elif db_word is None:
                     logger.info("Answer not found in the DB, but found a synonym instead")
-                    answer = random.choice(translations)
-                    answer: classes.DBWord
+                    answer: classes.DBWord = random.choice(translations)
                     await self.random_sleep("typing", len(answer.word))
                     await self.send_answer(word, answer.word)
                 elif word.id not in self.seen_words and self.check_mistake_chance(db_word.seen_times):
@@ -99,13 +100,22 @@ class AutoSolver:
                             if w.id == word.id:
                                 del translations[j]
                                 break
-                        answer = random.choice(translations)
-                        await self.random_sleep("typing", len(answer.word))
-                        await self.send_answer(word, answer.word)
+                        answer: str = random.choice(translations).word
+                        if utils.check_chance(self.config.lowercase_chance):
+                            logger.info("...and making it lowercase")
+                            answer: str = answer.lower()
+                        await self.random_sleep("typing", len(answer))
+                        await self.send_answer(word, answer)
                     else:
                         logger.info("Submitting nothing instead of the actual answer")
                         await self.random_sleep('give_up')
                         await self.send_nothing(word)
+                elif not db_word.shown_word.islower() and word.id not in self.seen_words and utils.check_chance(
+                        self.config.lowercase_chance):
+                    logger.info("Simulating mistake: sending answer as lowercase")
+                    answer: str = db_word.shown_word.lower()
+                    await self.random_sleep("typing", len(answer))
+                    await self.send_answer(word, answer)
                 else:
                     logger.debug(f"Seen {db_word.seen_times} times, last on {db_word.last_seen.ctime()}")
                     await self.random_sleep("typing", len(db_word.shown_word))
@@ -157,7 +167,8 @@ async def main():
         base_memorize_chance=0.2,
         memorize_requirement=3,
         synonym_chance=0.75,
-        mistake_chance=0.025
+        mistake_chance=0.025,
+        lowercase_chance=0.35,
     )
     async with database.DatabaseManager(pool_recycle=60, user="mini_bomba", password="", db="InstalingBot",
                                         unix_socket="/var/run/mysqld/mysqld.sock") as db:
