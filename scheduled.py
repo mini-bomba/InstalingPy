@@ -78,6 +78,8 @@ async def main():
         config = json.load(f)
     profiles = []
     for p in config['profiles']:
+        if p['solver_config']['runs'] < 1:
+            continue
         rt = p['run_times']
         profiles.append(SolverProfile(
             run_times=(datetime.time(*rt[0]), datetime.time(*rt[1])),
