@@ -79,6 +79,7 @@ async def main():
     profiles = []
     for p in config['profiles']:
         if p['solver_config']['runs'] < 1:
+            logger.warning(f"Skipping profile {p['username']} initialization: no runs configured")
             continue
         rt = p['run_times']
         profiles.append(SolverProfile(
