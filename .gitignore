@@ -161,3 +161,4 @@ cython_debug/
 logs/
 test.ipynb
 config.json
+rcon.sock

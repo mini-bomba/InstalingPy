@@ -1,13 +1,15 @@
-import httpx
 import datetime
-from . import urls
-from .exceptions import SessionExpired
 import logging
 import os
-import sys
-import time
 import random
 import re
+import sys
+import time
+
+import httpx
+
+from . import urls
+from .exceptions import SessionExpired
 
 paren_remover = re.compile(r"\s*\(.+?\)\s*")
 double_space = re.compile(r"\s{2,}")
@@ -39,6 +41,10 @@ def logging_file_formatter() -> logging.Formatter:
     return logging.Formatter("[%(asctime)s] [%(name)s|%(levelname)s]: %(message)s")
 
 
+def utc_timestamp(dt: datetime.datetime) -> int:
+    return int(dt.astimezone(datetime.timezone.utc).timestamp())
+
+
 def logging_setup():
     # Make logs dir
     os.makedirs("logs", exist_ok=True)
@@ -56,3 +62,4 @@ def logging_setup():
     root_logger.setLevel(logging.DEBUG)
     root_logger.addHandler(file_handler)
     root_logger.addHandler(stdout_handler)
+    logging.getLogger("httpcore").setLevel(logging.INFO)
