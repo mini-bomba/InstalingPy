@@ -4,10 +4,10 @@ import dataclasses
 import datetime
 import json
 import logging
-import os
 import random
 import string
 import time
+from pathlib import Path
 from typing import Any
 
 import math
@@ -214,7 +214,7 @@ class Scheduler:
         profile.running = False
 
 
-def load_config() -> tuple[dict[str, SolverProfile], str, dict[str, Any]]:
+def load_config() -> tuple[dict[str, SolverProfile], str, dict[str, Any], Path]:
     logger = logging.getLogger("configs")
     with open("config.json") as f:
         config = json.load(f)
@@ -239,16 +239,17 @@ def load_config() -> tuple[dict[str, SolverProfile], str, dict[str, Any]]:
             last_log=None,
         )
     logger.debug("Config parsed.")
-    return profiles, config['webhook'], config['database']
+    return profiles, config['webhook'], config['database'], Path(config['rcon_path'])
 
 
 async def main():
-    profiles, webhook_url, database_config = load_config()
+    profiles, webhook_url, database_config, rcon_path = load_config()
     async with webhooks.Webhook(webhook_url) as wh:
         async with database.DatabaseManager(**database_config) as db:
             scheduler = Scheduler(profiles, wh, db)
-            server = await asyncio.start_unix_server(scheduler.handle_rcon_client, "rcon.sock")
-            os.chmod("rcon.sock", 0o0600)
+            rcon_path.parent.mkdir(parents=True, exist_ok=True)
+            server = await asyncio.start_unix_server(scheduler.handle_rcon_client, rcon_path)
+            rcon_path.chmod(0o600)
 
             await asyncio.gather(scheduler.run(), server.serve_forever())
 
