@@ -3,6 +3,7 @@ import logging
 import os
 import random
 import re
+import signal
 import sys
 import time
 
@@ -63,3 +64,11 @@ def logging_setup():
     root_logger.addHandler(file_handler)
     root_logger.addHandler(stdout_handler)
     logging.getLogger("httpcore").setLevel(logging.INFO)
+
+
+def interrupt_self(*_):
+    os.kill(os.getpid(), signal.SIGINT)
+
+
+def redirect_sigterm_to_sigint():
+    signal.signal(signal.SIGTERM, interrupt_self)

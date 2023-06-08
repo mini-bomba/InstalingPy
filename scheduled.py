@@ -256,5 +256,6 @@ async def main():
 
 if __name__ == "__main__":
     utils.logging_setup()
+    utils.redirect_sigterm_to_sigint()
     with contextlib.suppress(KeyboardInterrupt), asyncio.Runner() as runner:
         runner.run(main())
