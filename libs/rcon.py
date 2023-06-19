@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from . import utils
 
 if TYPE_CHECKING:
-    from ..scheduled import Scheduler
+    from ..scheduled import Scheduler, SolverProfile
 
 logger = logging.getLogger("scheduler.rcon")
 
@@ -64,6 +64,7 @@ class RconErrorResponse(BaseRconResponse):
     type = "error"
     command_type: str
     error: str
+    detail: str | None
 
 
 class RconExitResponse(BaseRconResponse):
@@ -80,6 +81,14 @@ class RconProfileRescheduledResponse(BaseRconResponse):
     type = "profile_rescheduled"
     profile: str
     new_time: datetime.datetime
+
+
+class RconReloadCompleteResponse(BaseRconResponse):
+    type = "reload"
+    new_profiles: list[str]
+    updated_profiles: list[str]
+    removed_profiles: list[str]
+    deferred_profiles: list[str]
 
 
 class RconExit(Exception):
@@ -109,8 +118,8 @@ class BaseRconCommand(BaseModel, ABC):
     def send_success(self, writer: asyncio.StreamWriter):
         RconCommandSuccessResponse(nonce=self.nonce, command_type=self.type).send(writer)
 
-    def send_error(self, writer: asyncio.StreamWriter, error: str):
-        RconErrorResponse(nonce=self.nonce, command_type=self.type, error=error).send(writer)
+    def send_error(self, writer: asyncio.StreamWriter, error: str, detail: str | None = None):
+        RconErrorResponse(nonce=self.nonce, command_type=self.type, error=error, detail=detail).send(writer)
 
 
 class RconPingCommand(BaseRconCommand):
@@ -177,6 +186,7 @@ class RconRescheduleCommand(BaseRconCommand):
         if self.new_time is None:
             if profile.run_times.end < now.time():
                 return self.send_error(writer, "Automatic rescheduling failed - past profile max start time!")
+            profile.reschedule()
         elif self.new_time < now:
             return self.send_error(writer, f"New scheduled time cannot be in the past!")
         else:
@@ -242,6 +252,94 @@ class RconRunNowCommand(BaseRconCommand):
         scheduler.start_solver_task(profile)
         await scheduler.webhook.send_message(f"Profile `{profile.profile_name}` has been manually started")
         self.send_success(writer)
+
+
+class RconTriggerSchedulerCommand(BaseRconCommand):
+    type: Literal["trigger_scheduler"]
+
+    async def process(self, scheduler: 'Scheduler', writer: asyncio.StreamWriter):
+        scheduler.schedule_now()
+        self.send_success(writer)
+
+
+class RconReloadCommand(BaseRconCommand):
+    type: Literal["reload"]
+
+    async def process(self, scheduler: 'Scheduler', writer: asyncio.StreamWriter):
+        try:
+            new_profiles = scheduler.load_config()[0]
+        except Exception as e:
+            logger.exception("Failed to load config")
+            self.send_error(writer, "Failed to load new configs", f"{type(e).__name__}: {e}")
+            return
+        # Compute modification lists
+        removed_profiles = [profile for profile in scheduler.profiles.keys() if profile not in new_profiles]
+        added_profiles = {name: profile for name, profile in new_profiles.items() if name not in scheduler.profiles}
+        updated_profiles = {name: profile for name, profile in new_profiles.items() if name in scheduler.profiles}
+        deferred_profiles = []
+        # Take out the profiles list, cancel all solvers in the initial wait state
+        old_profiles = scheduler.profiles
+        scheduler.profiles = {}
+        for name, profile in old_profiles.items():
+            if not profile.running:
+                logger.info(f"Cancelling task for profile {profile.profile_name}")
+                await profile.cancel_task()
+            elif name in new_profiles:
+                deferred_profiles.append(name)
+        # Copy state values to new profiles
+        for name, profile in updated_profiles.items():
+            old_profile = old_profiles[name]
+            profile.last_run = old_profile.last_run
+            profile.next_run = old_profile.next_run
+            profile.task = old_profile.task
+            profile.running = old_profile.running
+            profile.last_log = old_profile.last_log
+        # Wait for deferred profiles to finish, then update their state
+        # Since we're replacing the profile object, they could get stuck in an incorrect state
+        for name in deferred_profiles:
+            new_profile = new_profiles[name]
+            if new_profile.task is not None:
+                new_profile.task = asyncio.create_task(self.profile_migrator(new_profile.task, new_profile))
+        # Report changes via webhook
+        added_profiles_text = "\n".join([f"+  {n}" for n in added_profiles.keys()])
+        removed_profiles_text = "\n".join([f"-  {n}" for n in removed_profiles])
+        modified_profiles_text = "\n".join([f"   {n}{' (deferred update)' if n in deferred_profiles else ''}"
+                                            for n in updated_profiles.keys()])
+        await scheduler.webhook.send_message(
+            "Profile config reloaded. Changes made:\n"
+            "```diff\n"
+            "New profiles:\n"
+            f"{added_profiles_text}\n\n"
+            "Modified profiles:\n"
+            f"{modified_profiles_text}\n\n"
+            "Removed profiles:\n"
+            f"{removed_profiles_text}\n"
+            "```"
+        )
+        # Replace profile list, reschedule profiles whose run times were modified & trigger a scheduler update
+        now = datetime.datetime.now().time()
+        for profile in new_profiles.values():
+            if not profile.running and profile.next_run is not None and now < profile.run_times.end \
+                    and not profile.run_times.start <= profile.next_run.time() <= profile.run_times.end:
+                new_time = profile.reschedule()
+                await scheduler.webhook.send_message(f"Profile `{profile.profile_name}` has been rescheduled to run at "
+                                                     f"<t:{utils.utc_timestamp(new_time)}:F>")
+        scheduler.profiles = new_profiles
+        scheduler.schedule_now()
+        # Send results
+        RconReloadCompleteResponse(
+            nonce=self.nonce,
+            new_profiles=list(added_profiles.keys()),
+            updated_profiles=list(updated_profiles.keys()),
+            removed_profiles=removed_profiles,
+            deferred_profiles=deferred_profiles,
+        ).send(writer)
+
+    @staticmethod
+    async def profile_migrator(task: asyncio.Task, new_profile: 'SolverProfile'):
+        await task
+        new_profile.task = None
+        new_profile.running = False
 
 
 # Autogenerate a union of all BaseRconCommand classes defined here

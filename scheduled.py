@@ -39,6 +39,8 @@ class SolverProfile:
     last_log: str | None
 
     async def cancel_task(self):
+        if self.task is None:
+            return
         self.task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await self.task
@@ -61,12 +63,17 @@ class Scheduler:
     profiles: dict[str, SolverProfile]
     webhook: webhooks.Webhook
     db: database.DatabaseManager
+    scheduler_trigger: asyncio.Event
     schedule_every = datetime.timedelta(minutes=15)
 
     def __init__(self, profiles: dict[str, SolverProfile], webhook: webhooks.Webhook, db: database.DatabaseManager):
         self.profiles = profiles
         self.webhook = webhook
         self.db = db
+        self.scheduler_trigger = asyncio.Event()
+
+    def schedule_now(self):
+        self.scheduler_trigger.set()
 
     async def handle_rcon_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
         logger = logging.getLogger("scheduler.rcon")
@@ -146,12 +153,17 @@ class Scheduler:
                     logger.info(f"Profile {profile_name} has been scheduled to run at {next_run.ctime()}")
                     await self.webhook.send_message(f"Profile `{profile_name}` has been scheduled to run at "
                                                     f"<t:{utils.utc_timestamp(next_run)}:F>.")
-                if profile.next_run - now > self.schedule_every:
+            # Run stuff
+            for profile_name, profile in self.profiles.items():
+                if profile.next_run is None or profile.task is not None or profile.next_run - now > self.schedule_every:
                     continue
                 logger.info(f"Creating a task for profile {profile_name}")
                 profile.last_run = now
                 self.start_solver_task(profile)
-            await asyncio.sleep(self.schedule_every.total_seconds())
+            with contextlib.suppress(asyncio.TimeoutError):
+                async with asyncio.timeout(self.schedule_every.total_seconds()):
+                    await self.scheduler_trigger.wait()
+            self.scheduler_trigger.clear()
 
     def start_solver_task(self, profile: SolverProfile):
         if profile.task is not None:
@@ -213,37 +225,37 @@ class Scheduler:
         profile.task = None
         profile.running = False
 
-
-def load_config() -> tuple[dict[str, SolverProfile], str, dict[str, Any], Path]:
-    logger = logging.getLogger("configs")
-    with open("config.json") as f:
-        config = json.load(f)
-    profiles = {}
-    for name, p in config['profiles'].items():
-        if p['solver_config']['runs'] < 1:
-            logger.warning(f"Skipping profile {name} initialization: no runs configured")
-            continue
-        rt = p['run_times']
-        profiles[name] = SolverProfile(
-            profile_name=name,
-            run_times=RunTimes(datetime.time(*rt[0]), datetime.time(*rt[1])),
-            username=p['username'],
-            password=p['password'],
-            user_agent=p['user_agent'],
-            timeout=p['timeout'],
-            solver_config=SolverConfig(**p['solver_config']),
-            last_run=datetime.datetime.fromtimestamp(0),
-            next_run=None,
-            task=None,
-            running=False,
-            last_log=None,
-        )
-    logger.debug("Config parsed.")
-    return profiles, config['webhook'], config['database'], Path(config['rcon_path'])
+    @staticmethod
+    def load_config() -> tuple[dict[str, SolverProfile], str, dict[str, Any], Path]:
+        logger = logging.getLogger("configs")
+        with open("config.json") as f:
+            config = json.load(f)
+        profiles = {}
+        for name, p in config['profiles'].items():
+            if p['solver_config']['runs'] < 1:
+                logger.warning(f"Skipping profile {name} initialization: no runs configured")
+                continue
+            rt = p['run_times']
+            profiles[name] = SolverProfile(
+                profile_name=name,
+                run_times=RunTimes(datetime.time(*rt[0]), datetime.time(*rt[1])),
+                username=p['username'],
+                password=p['password'],
+                user_agent=p['user_agent'],
+                timeout=p['timeout'],
+                solver_config=SolverConfig(**p['solver_config']),
+                last_run=datetime.datetime.fromtimestamp(0),
+                next_run=None,
+                task=None,
+                running=False,
+                last_log=None,
+            )
+        logger.debug("Config parsed.")
+        return profiles, config['webhook'], config['database'], Path(config['rcon_path'])
 
 
 async def main():
-    profiles, webhook_url, database_config, rcon_path = load_config()
+    profiles, webhook_url, database_config, rcon_path = Scheduler.load_config()
     async with webhooks.Webhook(webhook_url) as wh:
         async with database.DatabaseManager(**database_config) as db:
             scheduler = Scheduler(profiles, wh, db)
