@@ -228,7 +228,7 @@ class Scheduler:
     @staticmethod
     def load_config() -> tuple[dict[str, SolverProfile], str, dict[str, Any], Path]:
         logger = logging.getLogger("configs")
-        with open("config.json") as f:
+        with open("shared/config.json") as f:
             config = json.load(f)
         profiles = {}
         for name, p in config['profiles'].items():
