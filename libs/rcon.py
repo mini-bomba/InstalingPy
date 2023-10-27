@@ -342,6 +342,14 @@ class RconReloadCommand(BaseRconCommand):
         new_profile.running = False
 
 
+class RconCaptureWordcountSnapshotCommand(BaseRconCommand):
+    type: Literal["capture_wordcount_snapshot"]
+
+    async def process(self, scheduler: 'Scheduler', writer: asyncio.StreamWriter):
+        await scheduler.db.capture_wordcounts_snapshot()
+        self.send_success(writer)
+
+
 # Autogenerate a union of all BaseRconCommand classes defined here
 _rcon_command_types_list = [item for item in globals().values()
                             if item is not BaseRconCommand and isinstance(item, type)
