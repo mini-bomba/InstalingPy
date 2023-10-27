@@ -175,3 +175,29 @@ class DatabaseManager:
             await self.insert_word(word, user_id)
         else:
             print(" ‼️ New word, but answer is missing!")
+
+    async def capture_wordcounts_snapshot(self):
+        async with self.pool.acquire() as connection, connection.cursor() as cursor:
+            await cursor.execute("""
+                INSERT INTO GlobalWordCountHistory (words, tasks, translations, unique_translations)
+                SELECT
+                    (SELECT COUNT(*) FROM Words) AS words,
+                    (SELECT SUM(seen_times) FROM WordHistory) AS tasks,
+                    COUNT(*) AS translations,
+                    COUNT(DISTINCT translation) AS unique_translations
+                FROM WordTranslations
+            """)
+            await cursor.execute("""
+                INSERT INTO UserWordCountHistory (user_id, words, tasks, translations, unique_translations)
+                SELECT
+                    wh.user_id,
+                    COUNT(DISTINCT w.id) AS words,
+                    (SELECT SUM(wh2.seen_times) FROM WordHistory wh2 WHERE wh2.user_id = wh.user_id) AS tasks,
+                    COUNT(*) AS translations,
+                    COUNT(DISTINCT wt.translation) AS unique_translations
+                FROM Words w
+                JOIN WordHistory wh ON w.id = wh.word_id
+                JOIN WordTranslations wt ON w.id = wt.word_id
+                GROUP BY wh.user_id
+            """)
+            await connection.commit()

@@ -35,6 +35,32 @@ CREATE TABLE InstalingBot.WordHistory
             ON UPDATE CASCADE ON DELETE CASCADE
 );
 
+CREATE TABLE InstalingBot.GlobalWordCountHistory
+(
+    timestamp           DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    words               INT UNSIGNED NOT NULL,
+    tasks               INT UNSIGNED NOT NULL,
+    translations        INT UNSIGNED NOT NULL,
+    unique_translations INT UNSIGNED NOT NULL
+);
+
+CREATE UNIQUE INDEX GlobalWordCountHistory_timestamp_uindex
+    ON InstalingBot.GlobalWordCountHistory (timestamp DESC);
+
+
+CREATE TABLE InstalingBot.UserWordCountHistory
+(
+    timestamp           DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    user_id             INT          NOT NULL,
+    words               INT UNSIGNED NOT NULL,
+    tasks               INT UNSIGNED NOT NULL,
+    translations        INT UNSIGNED NOT NULL,
+    unique_translations INT UNSIGNED NOT NULL
+);
+
+CREATE UNIQUE INDEX UserWordCountHistory_user_id_timestamp_index
+    ON InstalingBot.UserWordCountHistory (user_id ASC, timestamp DESC);
+
+
 CREATE USER instaling@localhost IDENTIFIED WITH 'unix_socket';
 GRANT INSERT, SELECT, UPDATE ON InstalingBot.* TO instaling@localhost;
-

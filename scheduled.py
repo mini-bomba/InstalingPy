@@ -4,13 +4,13 @@ import dataclasses
 import datetime
 import json
 import logging
+import math
 import random
 import string
 import time
 from pathlib import Path
 from typing import Any
 
-import math
 import pydantic
 
 from automatic import SolverConfig, AutoSolver
@@ -213,6 +213,9 @@ class Scheduler:
         solver_logger.removeHandler(handler)
         handler.flush()
         handler.close()
+
+        logger.debug("Creating wordcount snapshots")
+        await self.db.capture_wordcounts_snapshot()
 
         logger.debug("Reporting task completion via webhook")
         mins = math.floor(time_elapsed / 60)
