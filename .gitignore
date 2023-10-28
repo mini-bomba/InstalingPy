@@ -163,3 +163,4 @@ shared/
 test.ipynb
 config.json
 rcon.sock
+SessionHistory.csv
