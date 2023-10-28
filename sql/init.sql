@@ -62,5 +62,18 @@ CREATE UNIQUE INDEX UserWordCountHistory_user_id_timestamp_index
     ON InstalingBot.UserWordCountHistory (user_id ASC, timestamp DESC);
 
 
+CREATE TABLE InstalingBot.SessionHistory
+(
+    timestamp  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    user_id    INT      NOT NULL,
+    start_time DATETIME NOT NULL,
+    end_time   DATETIME NOT NULL,
+    success    BOOL     NOT NULL
+);
+
+CREATE UNIQUE INDEX SessionHistory_timestamp_user_id_uindex
+    ON InstalingBot.SessionHistory (timestamp DESC, user_id ASC);
+
+
 CREATE USER instaling@localhost IDENTIFIED WITH 'unix_socket';
 GRANT INSERT, SELECT, UPDATE ON InstalingBot.* TO instaling@localhost;

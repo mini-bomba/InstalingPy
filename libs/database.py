@@ -201,3 +201,13 @@ class DatabaseManager:
                 GROUP BY wh.user_id
             """)
             await connection.commit()
+
+    async def log_session_timing(
+            self, user_id: int, start_time: datetime.datetime, end_time: datetime.datetime, success: bool
+    ):
+        async with self.pool.acquire() as connection, connection.cursor() as cursor:
+            await cursor.execute("""
+                INSERT INTO SessionHistory (user_id, start_time, end_time, success)
+                VALUES (%s, %s, %s, %s)
+            """, (user_id, start_time, end_time, success))
+            await connection.commit()

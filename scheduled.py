@@ -192,9 +192,12 @@ class Scheduler:
 
         logger.debug("Starting a session...")
         await self.webhook.send_message(f"Solver for profile `{profile.profile_name}` is starting.")
-        start_time = time.time()
+        start_time = datetime.datetime.now()
+        user_id = None
+        success = False
         try:
             async with instaling.Session(profile.username, profile.password, user_agent=profile.user_agent) as session:
+                user_id = session.db_user_id
                 logger.info("Starting the auto solver session")
                 autosolver = AutoSolver(session, self.db, solver_logger, profile.solver_config)
                 await autosolver.run()
@@ -207,19 +210,27 @@ class Scheduler:
             asyncio.current_task().uncancel()
         else:
             result = "finished"
-        time_elapsed = round(time.time() - start_time)
+            success = True
+        end_time = datetime.datetime.now()
+        time_elapsed = end_time - start_time
 
         logger.debug("Cleaning up solver loggers")
         solver_logger.removeHandler(handler)
         handler.flush()
         handler.close()
 
+        if user_id is not None:
+            logger.debug("Logging session completion")
+            await self.db.log_session_timing(user_id, start_time, end_time, success)
+        else:
+            logger.warning("Not logging session completion: Signing into InstaLing failed")
+
         logger.debug("Creating wordcount snapshots")
         await self.db.capture_wordcounts_snapshot()
 
         logger.debug("Reporting task completion via webhook")
-        mins = math.floor(time_elapsed / 60)
-        secs = time_elapsed % 60
+        mins = math.floor(time_elapsed.seconds / 60)
+        secs = time_elapsed.seconds % 60
         await self.webhook.send_message(
             f"Solver for profile `{profile.profile_name}` has {result} after {mins}m {secs}s.\n"
             f"Task logs attached below.",
