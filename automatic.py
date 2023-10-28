@@ -126,6 +126,9 @@ class AutoSolver:
                 self.seen_words.add(word.id)
                 await self.random_sleep("next_question")
             logger.info(f"Session {i + 1} of {self.config.runs} finished!")
+            if i < self.config.runs - 1:
+                logger.debug("Capturing word counts snapshot")
+                await self.db.capture_wordcounts_snapshot()
         logger.info("All finished!")
 
     async def send_nothing(self, word: classes.WordData):
@@ -174,6 +177,7 @@ async def main():
                                         unix_socket="/var/run/mysqld/mysqld.sock") as db:
         async with instaling.Session(user, password) as session:
             await AutoSolver(session, db, logging.getLogger(f"solver.{user}"), config).run()
+            await db.capture_wordcounts_snapshot()
 
 
 if __name__ == "__main__":
