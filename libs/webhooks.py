@@ -4,10 +4,12 @@ import httpx
 class Webhook:
     client: httpx.AsyncClient
     url: str
+    retries: int
 
-    def __init__(self, url: str):
+    def __init__(self, url: str, *, timeout: float = 30, retries: int = 3):
         self.url = url
-        self.client = httpx.AsyncClient()
+        self.client = httpx.AsyncClient(timeout=timeout)
+        self.retries = retries
 
     async def __aenter__(self) -> 'Webhook':
         await self.client.__aenter__()
@@ -33,7 +35,15 @@ class Webhook:
                 f'file[{i}]': open(path, "rb")
                 for i, path in enumerate(file_path)
             }
-        await self.client.post(self.url, data=data, files=files)
-        if files is not None:
-            for file in files.values():
-                file.close()
+        try:
+            for i in range(self.retries):
+                try:
+                    await self.client.post(self.url, data=data, files=files)
+                    break
+                except Exception:
+                    if i == self.retries - 1:
+                        raise
+        finally:
+            if files is not None:
+                for file in files.values():
+                    file.close()

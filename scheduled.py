@@ -51,6 +51,15 @@ class SolverProfile:
     def logger(self) -> logging.Logger:
         return logging.getLogger(f"solver.{self.profile_name}")
 
+    @property
+    def session_extras(self) -> dict[str, Any]:
+        extras = {}
+        if self.user_agent is not None:
+            extras['user_agent'] = self.user_agent
+        if self.timeout is not None:
+            extras['timeout'] = self.timeout
+        return extras
+
     def reschedule(self) -> datetime.datetime:
         today = datetime.date.today()
         ts_min = datetime.datetime.combine(today, self.run_times.start).timestamp()
@@ -128,7 +137,10 @@ class Scheduler:
                                                     f"{profile_name} is registered as running, but task is None!")
                     profile.running = False
                 elif profile.task is not None and profile.running:
-                    if profile.task.done():
+                    if not profile.task.done():
+                        logger.warning(f"Profile {profile_name} hasn't been ran today yet, but is already running!")
+                        profile.task.cancel("End of day reached")
+                    if profile.task is not None:
                         try:
                             await profile.task
                             logger.warning(f"Profile {profile_name} did not unset its task property")
@@ -138,16 +150,15 @@ class Scheduler:
                             logger.error(f"Profile {profile_name} was found crashed outside of a try-catch!")
                             p_logger = profile.logger
                             p_logger.exception(f"Recovered an uncaught exception", exc_info=e)
-                            if len(p_logger.handlers) != 0:
-                                p_logger.handlers.clear()
+                            for handler in p_logger.handlers[:]:
+                                p_logger.removeHandler(handler)
+                                handler.flush()
+                                handler.close()
                             await self.webhook.send_message(f"(<@!446690119366475796>) Recovered an uncaught exception "
                                                             f"from profile `{profile_name}`! Last logs attached below.",
                                                             file_path=profile.last_log)
-                    else:
-                        logger.warning(f"Profile {profile_name} hasn't been ran today yet, but is already running!")
-                        await self.webhook.send_message(f"(<@!446690119366475796>) Profile {profile_name} is still "
-                                                        f"running!")
-                        continue
+                            profile.task = None
+                            profile.running = False
                 if profile.next_run is None:
                     next_run = profile.reschedule()
                     logger.info(f"Profile {profile_name} has been scheduled to run at {next_run.ctime()}")
@@ -196,7 +207,7 @@ class Scheduler:
         user_id = None
         success = False
         try:
-            async with instaling.Session(profile.username, profile.password, user_agent=profile.user_agent) as session:
+            async with instaling.Session(profile.username, profile.password, **profile.session_extras) as session:
                 user_id = session.db_user_id
                 logger.info("Starting the auto solver session")
                 autosolver = AutoSolver(session, self.db, solver_logger, profile.solver_config)
@@ -231,11 +242,14 @@ class Scheduler:
         logger.debug("Reporting task completion via webhook")
         mins = math.floor(time_elapsed.seconds / 60)
         secs = time_elapsed.seconds % 60
-        await self.webhook.send_message(
-            f"Solver for profile `{profile.profile_name}` has {result} after {mins}m {secs}s.\n"
-            f"Task logs attached below.",
-            file_path=log_file_name
-        )
+        try:
+            await self.webhook.send_message(
+                f"Solver for profile `{profile.profile_name}` has {result} after {mins}m {secs}s.\n"
+                f"Task logs attached below.",
+                file_path=log_file_name
+            )
+        except Exception:
+            logger.exception("Failed to report task completion!")
         profile.task = None
         profile.running = False
 
