@@ -10,7 +10,7 @@ CREATE TABLE InstalingBot.WordTranslations
 (
     id          INT AUTO_INCREMENT PRIMARY KEY,
     word_id     INT         NOT NULL,
-    translation VARCHAR(64) NOT NULL,
+    translation VARCHAR(128) NOT NULL,
     CONSTRAINT WordTranslations_Words_id_fk
         FOREIGN KEY (word_id) REFERENCES Words (id)
             ON UPDATE CASCADE ON DELETE CASCADE
