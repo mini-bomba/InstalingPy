@@ -29,7 +29,7 @@ class Session:
             user_agent: str = default_useragent,
             timeout: float | None = 10.0,
             root_logger: logging.Logger = logging.root,
-            retries: int = 3,
+            retries: int = 10,
             retry_wait: float = 2.5,
     ):
         self.username = username
