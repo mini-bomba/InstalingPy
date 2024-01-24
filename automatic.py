@@ -67,7 +67,10 @@ class AutoSolver:
             logger.info(f"Starting session {i + 1} of {self.config.runs}")
             await self.random_sleep("first_session" if i == 0 else "next_session")
             await self.distraction()
+            await self.session.get_session_status()
+            await self.random_sleep("next_question")
             async for word in self.session:
+                await self.session.make_ad_requests()
                 word: classes.WordData
                 if word.type == "marketing":
                     logger.debug("Skipping marketing")
@@ -139,6 +142,8 @@ class AutoSolver:
             raise RuntimeError(f"Word ID {word.id} didn't return an answer after entering nothing")
         logger.info(f"Got answer: {result.shown_answer}/{result.word}")
         await self.db.handle_word(result, self.db_user_id)
+        if result.grade != classes.AnswerGrade.Synonym and result.has_audio:
+            await self.session.make_audio_request(word.id)
 
     async def send_answer(self, word: classes.WordData, answer: str) -> classes.WordData:
         logger = self.main_logger.getChild("answers")
@@ -147,6 +152,8 @@ class AutoSolver:
         logger.info(f"Got result: {result.grade.name}")
         logger.debug(f"The correct answer was {result.shown_answer}/{result.word}")
         await self.db.handle_word(result, self.db_user_id)
+        if result.grade != classes.AnswerGrade.Synonym and result.has_audio:
+            await self.session.make_audio_request(word.id)
         return result
 
 
@@ -173,9 +180,10 @@ async def main():
         mistake_chance=0.025,
         lowercase_chance=0.35,
     )
+    user_logger = logging.getLogger(f"solver.{user}")
     async with database.DatabaseManager(pool_recycle=60, user="mini_bomba", password="", db="InstalingBot",
                                         unix_socket="/var/run/mysqld/mysqld.sock") as db:
-        async with instaling.Session(user, password) as session:
+        async with instaling.Session(user, password, root_logger=user_logger) as session:
             await AutoSolver(session, db, logging.getLogger(f"solver.{user}"), config).run()
             await db.capture_wordcounts_snapshot()
 

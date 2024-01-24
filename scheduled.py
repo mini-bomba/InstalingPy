@@ -31,6 +31,8 @@ class SolverProfile:
     password: str
     user_agent: str
     timeout: float | None
+    retries: int | None
+    retry_wait: float | None
     solver_config: SolverConfig
     last_run: datetime.datetime
     next_run: datetime.datetime | None
@@ -58,6 +60,10 @@ class SolverProfile:
             extras['user_agent'] = self.user_agent
         if self.timeout is not None:
             extras['timeout'] = self.timeout
+        if self.retries is not None:
+            extras['retries'] = self.retries
+        if self.retry_wait is not None:
+            extras['retry_wait'] = self.retry_wait
         return extras
 
     def reschedule(self) -> datetime.datetime:
@@ -207,7 +213,9 @@ class Scheduler:
         user_id = None
         success = False
         try:
-            async with instaling.Session(profile.username, profile.password, **profile.session_extras) as session:
+            async with instaling.Session(
+                    profile.username, profile.password, root_logger=solver_logger, **profile.session_extras
+            ) as session:
                 user_id = session.db_user_id
                 logger.info("Starting the auto solver session")
                 autosolver = AutoSolver(session, self.db, solver_logger, profile.solver_config)
@@ -269,8 +277,10 @@ class Scheduler:
                 run_times=RunTimes(datetime.time(*rt[0]), datetime.time(*rt[1])),
                 username=p['username'],
                 password=p['password'],
-                user_agent=p['user_agent'],
-                timeout=p['timeout'],
+                user_agent=p.get('user_agent'),
+                timeout=p.get('timeout'),
+                retries=p.get('retries'),
+                retry_wait=p.get('retry_wait'),
                 solver_config=SolverConfig(**p['solver_config']),
                 last_run=datetime.datetime.fromtimestamp(0),
                 next_run=None,

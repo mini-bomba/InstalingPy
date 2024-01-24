@@ -1,6 +1,6 @@
 import dataclasses
-import enum
 import datetime
+import enum
 
 
 @dataclasses.dataclass(init=True, frozen=True, slots=True, kw_only=True, repr=True)
@@ -26,6 +26,7 @@ class WordData:
     difficulty: int | None      # only present on objects from get_next_word(), if the word was not shown before
     translations: str
     audio_filename: str | None  # not present in objects from get_next_word()
+    has_audio: bool
     grade: AnswerGrade | None   # only present in objects from submit_answer()
     type: str | None            # only present on objects from get_next_word()
 
