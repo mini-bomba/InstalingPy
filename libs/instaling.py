@@ -79,6 +79,7 @@ class Session:
             "start": "",
             "end": ""
         })
+        r.raise_for_status()
         data = r.json()
         return classes.SessionStatus(
             in_progress=not data['is_new'],
@@ -100,6 +101,7 @@ class Session:
             "child_id": self.user_id,
             "date": utils.js_timestamp()
         })
+        r.raise_for_status()
         data = r.json()
         if 'id' not in data:
             return None
@@ -122,6 +124,7 @@ class Session:
             "answer": answer,
             "version": self.version
         })
+        r.raise_for_status()
         data = r.json()
         if 'id' not in data:
             return None  # session finished
