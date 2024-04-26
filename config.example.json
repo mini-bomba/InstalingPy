@@ -1,0 +1,49 @@
+{
+  "database": {
+    // anything you specify here is passed directly to aiomysql
+    // https://aiomysql.readthedocs.io/en/stable/connection.html
+    // https://aiomysql.readthedocs.io/en/stable/pool.html
+    "pool_recycle": 60,
+    "user": "InstalingBot",
+    "password": "",
+    "db": "InstalingBot",
+    // If you do not want to use unix sockets for database connections, replace unix_socket with host and port settings
+    "unix_socket": "/var/run/mysqld/mysqld.sock"
+  },
+  "webhook": "WEBHOOK LINK HERE",
+  "rcon_path": "shared/rcon.sock",
+  "profiles": {
+    // you can copy this section to register multiple profiles/users
+    "PROFILE NAME HERE, YOU CAN CHANGE THIS!": {
+      "run_times": [
+        [19, 33], // min [hour, minute]
+        [21, 35]  // max [hour, minute]
+      ],
+      "username": "username", // instaling username
+      "password": "password", // instaling password
+      "user_agent": "Mozilla/5.0 (X11; Linux x86_64; rv:121.0) Gecko/20100101 Firefox/121.0",  // useragent, copy from your own browser
+      "timeout": 30.0,  // in seconds, for API requests
+      "solver_config": {
+        "runs": 3,  // how many sessions to run per day (0 = profile disabled)
+        "speed_config": { // [min, max] in ms
+          "marketing_skip": [500, 2000],
+          "initial": [1000, 4000],
+          "extra_think": [2000, 10000],
+          "typing": [150, 600],
+          "give_up": [5000, 15000],
+          "next_question": [1000, 3000],
+          "first_session": [1000, 10000],
+          "next_session": [5000, 60000],
+          "distraction": [15000, 60000]
+        },
+         // 1 = 100%, 0.5 = 50%, 0.01 = 1%, etc.
+        "distraction_chance": 0.01,
+        "base_memorize_chance": 0.2, // chance to not make a mistake for a word seen only once
+        "memorize_requirement": 3,  // words seen >= this times will not have a raised mistake chance
+        "mistake_chance": 0.025, // mistake chance that applies to all words (not dependent on times seen)
+        "synonym_chance": 0.75,  // chance to submit a synonym when making a mistake
+        "lowercase_chance": 0.35  // chance to submit the word lowercased when making a mistake
+      }
+    }
+  }
+}
