@@ -55,7 +55,6 @@ class Session:
             "log_email": self.username,
             "log_password": self.password
         })
-        del self.username
         del self.password
         if r.url.path != urls.MAIN:
             raise LoginError("Failed to log in.")

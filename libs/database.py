@@ -211,3 +211,12 @@ class DatabaseManager:
                 VALUES (%s, %s, %s, %s)
             """, (user_id, start_time, end_time, success))
             await connection.commit()
+
+    async def log_username_mapping(self, user_id: int, username: str):
+        async with self.pool.acquire() as connection, connection.cursor() as cursor:
+            await cursor.execute("""
+                INSERT INTO Usernames (user_id, username)
+                VALUES (%s, %s)
+                ON DUPLICATE KEY UPDATE username=%s;
+            """, (user_id, username, username))
+            await connection.commit()

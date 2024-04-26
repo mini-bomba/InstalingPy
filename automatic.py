@@ -63,6 +63,8 @@ class AutoSolver:
 
     async def run(self):
         logger = self.main_logger.getChild("solver")
+        logger.debug(f"Logging userid mapping: userid {self.db_user_id} is username '{self.session.username}'")
+        await self.db.log_username_mapping(self.db_user_id, self.session.username)
         for i in range(self.config.runs):
             logger.info(f"Starting session {i + 1} of {self.config.runs}")
             await self.random_sleep("first_session" if i == 0 else "next_session")

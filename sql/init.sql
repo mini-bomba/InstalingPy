@@ -74,6 +74,12 @@ CREATE TABLE InstalingBot.SessionHistory
 CREATE UNIQUE INDEX SessionHistory_timestamp_user_id_uindex
     ON InstalingBot.SessionHistory (timestamp DESC, user_id ASC);
 
+CREATE TABLE InstalingBot.Usernames
+(
+    user_id INT          NOT NULL PRIMARY KEY,
+    username VARCHAR(16) NOT NULL
+);
+
 
 CREATE USER instaling@localhost IDENTIFIED WITH 'unix_socket';
 GRANT INSERT, SELECT, UPDATE ON InstalingBot.* TO instaling@localhost;
