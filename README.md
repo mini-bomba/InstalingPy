@@ -85,6 +85,6 @@ InstalingPy is available under AGPLv3, but it wouldn't be possible without the f
   - [`httpx`](https://github.com/encode/httpx/), the awesome (a)sync HTTP library with an API closely resembling the `requests` library.
 - [Python](https://www.python.org/), the programming language used in this project
 - [MariaDB](https://github.com/MariaDB/server), the SQL server, a fork of MySQL
-- [Podman](https://github.com/containers/podman), the Docker alternative that makes me go crazy about user namespaces, uid mappings and briding the netowork with pasta
+- [Podman](https://github.com/containers/podman), the Docker alternative that makes me go crazy about user namespaces, uid mappings and bridging the netowork namespaces with pasta
 - [Grafana](https://github.com/grafana/grafana), that software for making cool visualizations of what my software is doing
 - [Linux](https://kernel.org/)
